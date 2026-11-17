@@ -1,0 +1,58 @@
+BILLPRO AI — COMMERCIAL MULTI-BUYER LICENSE TEMPLATE
+
+Copyright (c) [YEAR] [LICENSOR LEGAL NAME]. All rights reserved.
+
+This template is provided for discussion and should be reviewed and completed by qualified counsel before sale or distribution. Replace bracketed terms before use. It is not legal advice.
+
+1. Parties and acceptance
+
+This Commercial License Agreement (“Agreement”) is between [LICENSOR LEGAL NAME] (“Licensor”) and the purchaser identified in the applicable order or license record (“Licensee”). The Agreement applies when Licensee accepts the terms, downloads or installs BillPro AI, or uses it. The applicable order may include a purchase date, license identifier, version, deployment count, support period and fees. If the order conflicts with this Agreement, the order controls only for the specific conflicting commercial term.
+
+2. Multi-buyer commercial grant
+
+Licensor may market, sell and grant separate licenses for the same BillPro AI software to an unlimited number of independent purchasers. Each purchaser receives its own license under a separate order; one purchaser's payment or license does not restrict Licensor from selling the software to other purchasers.
+
+Subject to payment of applicable fees and compliance with this Agreement, Licensor grants Licensee a non-exclusive, non-transferable, revocable license during the term to install, reproduce for backup, configure and use the software and its source code for Licensee's own internal business operations, for the number of production instances stated in Licensee's order. Licensee may allow its employees and contractors to access the running application for Licensee's business, provided Licensee remains responsible for their compliance.
+
+Unless the order expressly grants redistribution rights, this license does not authorize Licensee to resell, sublicense, publish, host for unrelated third parties, redistribute or provide copies of the software or source code to another buyer. Licensee may not remove copyright, license or proprietary notices. Nothing in this Agreement transfers ownership of the software or its intellectual property to Licensee.
+
+3. Modifications and third-party components
+
+Licensee may make internal modifications needed to configure or operate its licensed copy, subject to applicable third-party licenses and the restrictions above. A modification does not transfer Licensor's ownership of the underlying software. Third-party components remain governed by their respective licenses; those licenses control where they grant broader rights or impose additional obligations.
+
+4. Licensee responsibilities
+
+Licensee is responsible for securing its installations, selecting and protecting its credentials, backups, access controls, customer data, tax settings, invoice content, and determining whether the software fits its legal, accounting, privacy and operational requirements. Licensee must use its own authorized MongoDB, Gemini, mail-delivery and other service credentials. Licensee must not use the software to violate law, infringe others' rights, or access data it is not authorized to access.
+
+5. Data and external services
+
+Licensee retains rights in the business and customer data it enters. Licensee is responsible for its lawful collection, use, retention, transfer and deletion. BillPro AI may connect to third-party providers only when Licensee configures those services; those providers' terms and privacy practices apply. The software publisher does not receive or store Licensee's external API secrets by virtue of this license.
+
+6. Tax and accounting disclaimer
+
+BillPro AI provides invoice-management and calculation tools. It is not legal, tax or accounting advice, and it does not guarantee that any invoice, tax rate, GST classification, e-invoice or filing is correct or compliant for Licensee's facts or current law. Licensee must verify tax treatment and invoice requirements with a qualified Indian GST professional. Any GST portal IRN or QR code must come from an authorized applicable process; the software must not be represented as generating an authenticated GST e-invoice unless that capability is separately implemented and authorized.
+
+7. Support, updates and changes
+
+Support, maintenance, upgrades and service levels are provided only if stated in Licensee's order or a separate written support agreement. Licensor may update or discontinue versions, subject to any express support commitment in the order.
+
+8. Warranty disclaimer
+
+To the maximum extent permitted by law, the software is provided “AS IS” and “AS AVAILABLE,” without warranties or conditions, express, implied or statutory, including merchantability, fitness for a particular purpose, title, non-infringement, availability, accuracy, uninterrupted operation or error-free operation. This clause does not exclude rights that cannot lawfully be excluded.
+
+9. Limitation of liability
+
+To the maximum extent permitted by law, neither party is liable to the other for indirect, incidental, special, punitive or consequential loss, loss of profits, business interruption, loss of goodwill or loss of data arising from this Agreement. Licensor's total aggregate liability for claims relating to the licensed software will not exceed the fees actually paid by Licensee for the applicable license in the twelve months before the event giving rise to the claim. These limitations do not apply where prohibited by law and do not limit liability that cannot lawfully be limited.
+
+10. Termination
+
+This license begins on the purchase date and continues while Licensee complies with this Agreement and pays applicable fees. Licensor may terminate it after written notice of a material breach and a reasonable opportunity to cure, except where immediate termination is required by law or necessary to address an ongoing security risk. On termination, Licensee must stop using the software and delete copies it is not legally required to retain.
+
+11. General terms
+
+This Agreement is governed by the laws of [JURISDICTION], excluding conflict-of-law rules, and the courts located in [VENUE] have jurisdiction, subject to non-waivable consumer or statutory rights. Changes to this Agreement must be in a signed writing or an expressly accepted order. If a provision is unenforceable, the rest remains effective. This Agreement is the complete agreement about the licensed software unless an order or separate signed agreement says otherwise.
+
+Licensor: [LICENSOR LEGAL NAME]
+Licensee: [LICENSEE LEGAL NAME]
+Order / license ID: [ORDER OR LICENSE ID]
+Purchase date: [DATE]
