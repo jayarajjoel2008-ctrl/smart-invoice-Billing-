@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BillPro AI split-ledger mark">
+  <rect x="28" y="28" width="456" height="456" rx="128" fill="#081C35"/>
+  <path d="M165 147h119c48 0 75 24 75 64 0 28-15 48-40 57 34 8 54 30 54 64 0 47-34 75-88 75H165z" fill="none" stroke="#0E9F9A" stroke-width="30" stroke-linejoin="round"/>
+  <path d="M165 147v260" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+  <path d="M201 211h102M201 308h124" fill="none" stroke="#E8F3FC" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="346" cy="146" r="13" fill="#D9F6EF"/>
+</svg>
