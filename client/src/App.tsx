@@ -131,8 +131,9 @@ export default function App() {
       })
       .catch(error => {
         if (!active) return;
-        // 401 unauthenticated is expected when not logged in yet
-        if (!(error instanceof ApiError && error.status === 401)) {
+        const isStaticHost = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+        // 401 unauthenticated is expected when not logged in yet; 404 is expected on static GitHub Pages
+        if (!(error instanceof ApiError && (error.status === 401 || (isStaticHost && error.status === 404))) && !isStaticHost) {
           setBootError(error instanceof Error ? error.message : 'Unable to check your session.');
         }
         setReady(true);
