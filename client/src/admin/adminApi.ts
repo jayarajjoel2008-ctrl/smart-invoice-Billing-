@@ -2,7 +2,11 @@
 // Communicates with /api/admin/* endpoints with credentials and security headers
 
 const ADMIN_BASE = '/api/admin';
-const isStaticHost = () => typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+const isStaticHost = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname.toLowerCase();
+  return host.endsWith('github.io') || host.endsWith('vercel.app') || host.endsWith('netlify.app');
+};
 
 const STATIC_ADMIN_USER: AdminUserType = {
   id: 'admin_preview_1',

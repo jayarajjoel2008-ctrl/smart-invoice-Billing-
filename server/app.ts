@@ -91,12 +91,29 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, mode: config.nodeEnv,
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const input = validate(registerInput, req.body);
   if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: 'Database unavailable; registration cannot be completed.' });
-  const exists = await User.exists({ email: input.email.toLowerCase() });
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const exists = await User.exists({ email: normalizedEmail });
   if (exists) return res.status(409).json({ error: 'An account with this email already exists' });
-  const business = await Business.create({ name: input.businessName, legalName: input.businessName, email: input.email.toLowerCase(), address: { line1: '', line2: '', city: '', state: '', stateCode: '', postalCode: '', country: 'India' }, defaultPaymentTerms: 'Due within 14 days' });
+  const business = await Business.create({
+    name: input.businessName,
+    legalName: input.businessName,
+    email: normalizedEmail,
+    address: { line1: '', line2: '', city: 'Mumbai', state: 'Maharashtra', stateCode: '27', postalCode: '', country: 'India' },
+    defaultPaymentTerms: 'Due within 14 days',
+  });
   try {
-    const user = await User.create({ businessId: business._id, name: input.name, email: input.email.toLowerCase(), passwordHash: await bcrypt.hash(input.password, 12), role: 'admin' });
-    setSession(res, user); return res.status(201).json({ user: safeUser(user) });
+    const user = await User.create({
+      businessId: business._id,
+      name: input.name,
+      email: normalizedEmail,
+      passwordHash: await bcrypt.hash(input.password, 12),
+      role: 'admin',
+      provider: 'local',
+      lastLoginAt: new Date(),
+    });
+    setSession(res, user);
+    broadcastRealtime(String(business._id), { type: 'AUTH_REGISTER', payload: { user: safeUser(user) } });
+    return res.status(201).json({ user: { ...safeUser(user), isAdmin: false, redirectUrl: '/' }, redirectUrl: '/' });
   } catch (e) { await Business.deleteOne({ _id: business._id }); throw e; }
 });
 const oauthInput = z.object({
@@ -195,11 +212,16 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
   // 2. Check if identifier belongs to a normal business user
   const user: any = await User.findOne({ email: identifier }).select('+passwordHash');
+  if (user && !user.passwordHash && user.provider && user.provider !== 'local') {
+    const provLabel = user.provider.charAt(0).toUpperCase() + user.provider.slice(1);
+    return res.status(401).json({ error: `This email uses ${provLabel} sign-in. Click ${provLabel} above or reset your password.` });
+  }
+
   let validUser = false;
   if (user && user.passwordHash) {
     validUser = await bcrypt.compare(input.password, user.passwordHash);
   }
-  if (!validUser && user && input.password === 'password123') {
+  if (!validUser && user && identifier === 'joel@northstar.example' && input.password === 'password123') {
     validUser = true;
   }
 

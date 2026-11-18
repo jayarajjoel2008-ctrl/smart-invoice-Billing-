@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import {
   Activity as ActivityIcon, ArrowDownLeft, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight,
   Bell, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  CircleHelp, Clock3, Command, Copy, CreditCard, Download, Edit3, Eye, FileCheck2, FileDown, FilePlus2,
+  CircleHelp, Clock3, Command, Copy, CreditCard, Download, Edit3, Eye, EyeOff, FileCheck2, FileDown, FilePlus2,
   FileSpreadsheet, FileText, Filter, HandCoins, Home, LayoutDashboard, LoaderCircle, LogOut,
   Mail, Menu, MessageSquareText, Moon, MoreHorizontal, Package, Play, Plus, Printer, ReceiptText,
   Search, Send, Settings as SettingsIcon, ShieldAlert, ShieldCheck, Sparkles, Sun, Trash2, UserRound,
@@ -25,6 +25,40 @@ import { AdminApp } from './admin/AdminApp';
 
 const DEMO_KEY = 'billpro.demo.workspace.v1';
 const THEME_KEY = 'billpro.theme.v4';
+const STATIC_ACCOUNTS_KEY = 'billpro.static.accounts.v1';
+const STATIC_SESSION_KEY = 'billpro.static.user.v1';
+
+interface StaticAccountRecord {
+  id: string;
+  name: string;
+  email: string;
+  businessName: string;
+  passwordHash: string;
+  role: 'admin' | 'staff';
+  createdAt: string;
+}
+
+async function hashPasswordSha256(plain: string): Promise<string> {
+  if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+    const encoded = new TextEncoder().encode(`billpro_v1:${plain}`);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', encoded);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return `plain:${plain}`;
+}
+
+function loadStaticAccounts(): StaticAccountRecord[] {
+  try {
+    const raw = localStorage.getItem(STATIC_ACCOUNTS_KEY);
+    return raw ? (JSON.parse(raw) as StaticAccountRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStaticAccounts(accounts: StaticAccountRecord[]) {
+  localStorage.setItem(STATIC_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
 
 export const states = [
   ['Jammu and Kashmir', '01'], ['Himachal Pradesh', '02'], ['Punjab', '03'], ['Chandigarh', '04'],
@@ -52,7 +86,7 @@ interface AppSession {
   bootError: string;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
-  startDemo: () => void;
+  startDemo: (profile?: { user?: AppUser; businessName?: string }) => void;
   signOut: () => Promise<void>;
   refreshWorkspace: () => Promise<void>;
   setWorkspace: (data: WorkspaceData | ((prior: WorkspaceData) => WorkspaceData)) => void;
@@ -110,12 +144,22 @@ export default function App() {
     if (saved) {
       try {
         setWorkspaceState(JSON.parse(saved) as WorkspaceData);
+        const savedUser = localStorage.getItem(STATIC_SESSION_KEY);
+        if (savedUser) {
+          setUser(JSON.parse(savedUser) as AppUser);
+        }
         setDemo(true);
         setReady(true);
         return;
       } catch {
         localStorage.removeItem(DEMO_KEY);
+        localStorage.removeItem(STATIC_SESSION_KEY);
       }
+    }
+
+    if (isStaticDemoHost()) {
+      setReady(true);
+      return;
     }
 
     let active = true;
@@ -131,9 +175,8 @@ export default function App() {
       })
       .catch(error => {
         if (!active) return;
-        const isStaticHost = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
-        // 401 unauthenticated is expected when not logged in yet; 404 is expected on static GitHub Pages
-        if (!(error instanceof ApiError && (error.status === 401 || (isStaticHost && error.status === 404))) && !isStaticHost) {
+        // 401 unauthenticated is expected when not logged in yet
+        if (!(error instanceof ApiError && error.status === 401)) {
           setBootError(error instanceof Error ? error.message : 'Unable to check your session.');
         }
         setReady(true);
@@ -241,7 +284,7 @@ export default function App() {
     window.setTimeout(() => setNotice(current => current?.message === message ? null : current), 3800);
   };
 
-  const startDemo = () => {
+  const startDemo = (profile?: { user?: AppUser; businessName?: string }) => {
     let data = cloneDemo();
     try {
       const saved = localStorage.getItem(DEMO_KEY);
@@ -249,8 +292,24 @@ export default function App() {
     } catch {
       // reset to clean seed
     }
+    if (profile?.businessName) {
+      data = {
+        ...data,
+        business: {
+          ...data.business,
+          name: profile.businessName,
+          legalName: profile.businessName,
+          email: profile.user?.email || data.business.email,
+        },
+      };
+    }
     setWorkspaceState(data);
-    setUser(null);
+    setUser(profile?.user ?? null);
+    if (profile?.user) {
+      localStorage.setItem(STATIC_SESSION_KEY, JSON.stringify(profile.user));
+    } else {
+      localStorage.removeItem(STATIC_SESSION_KEY);
+    }
     setDemo(true);
     setBootError('');
     setReady(true);
@@ -285,7 +344,10 @@ export default function App() {
   };
 
   const signOut = async () => {
+    localStorage.removeItem(STATIC_SESSION_KEY);
+    localStorage.removeItem('billpro_static_admin');
     if (demo) {
+      localStorage.removeItem(DEMO_KEY);
       setDemo(false);
       setWorkspaceState(null);
       setUser(null);
@@ -386,7 +448,11 @@ export function FacebookIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-export const isStaticDemoHost = () => typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+export const isStaticDemoHost = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname.toLowerCase();
+  return host.endsWith('github.io') || host.endsWith('vercel.app') || host.endsWith('netlify.app');
+};
 const withBasePath = (path: string) => {
   const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
   const clean = path.startsWith('/') ? path : `/${path}`;
@@ -428,16 +494,17 @@ function SocialAuthModal({
     setBusy(true);
     setError('');
     if (isStaticDemoHost()) {
-      startDemo();
-      toast(`Signed in with ${providerTitle} (Preview Workspace)`);
-      onSuccess({
+      const socialUser: AppUser = {
         id: shortId(),
         businessId: 'demo_biz',
         name: name.trim(),
         email: cleanEmail,
         role: 'admin',
         provider,
-      });
+      };
+      startDemo({ user: socialUser, businessName: `${name.trim()}'s Studio` });
+      toast(`Signed in with ${providerTitle}!`);
+      onSuccess(socialUser);
       return;
     }
     try {
@@ -545,6 +612,7 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [socialModal, setSocialModal] = useState<'google' | 'facebook' | 'apple' | null>(null);
@@ -569,24 +637,59 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       return;
     }
 
+    if (mode === 'register') {
+      if (!name.trim() || !businessName.trim()) {
+        setError('Please enter your full name and business name.');
+        return;
+      }
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+    }
+
     setBusy(true);
 
-    // Static GitHub Pages preview mode (no Node/MongoDB API hosted on *.github.io)
+    // Static GitHub Pages mode (browser-persisted SHA-256 account store when no Node/MongoDB API is hosted)
     if (isStaticDemoHost()) {
       const idLower = cleanEmail.toLowerCase();
       if (mode === 'register') {
-        startDemo();
-        toast(`Workspace created for ${name.trim() || 'your business'}!`);
+        const accounts = loadStaticAccounts();
+        if (accounts.some(a => a.email === idLower) || ['joel@northstar.example', 'admin@billpro.ai', 'admin@northstar.example'].includes(idLower)) {
+          setError('An account with this email already exists. Please sign in instead.');
+          setBusy(false);
+          return;
+        }
+        const passwordHash = await hashPasswordSha256(password);
+        const newRec: StaticAccountRecord = {
+          id: shortId(),
+          name: name.trim(),
+          email: idLower,
+          businessName: businessName.trim(),
+          passwordHash,
+          role: 'admin',
+          createdAt: new Date().toISOString(),
+        };
+        saveStaticAccounts([newRec, ...accounts]);
+        const newUser: AppUser = {
+          id: newRec.id,
+          businessId: `biz_${newRec.id}`,
+          name: newRec.name,
+          email: newRec.email,
+          role: 'admin',
+          provider: 'local',
+        };
+        startDemo({ user: newUser, businessName: newRec.businessName });
+        toast(`Workspace created for ${newRec.name}!`);
         navigate('/');
         setBusy(false);
         return;
       }
+
+      // Login verification on static host
       const isAdminCred =
         ['admin', 'admin@billpro.ai', 'admin@northstar.example'].includes(idLower) &&
         ['AdminPassword123!', 'password123', 'admin123'].includes(password);
-      const isUserCred =
-        idLower === 'joel@northstar.example' && password === 'password123';
-
       if (isAdminCred) {
         localStorage.setItem('billpro_static_admin', '1');
         toast('Welcome back, Super Admin!');
@@ -594,14 +697,49 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
         setBusy(false);
         return;
       }
-      if (isUserCred) {
+
+      if (idLower === 'joel@northstar.example' && password === 'password123') {
         localStorage.removeItem('billpro_static_admin');
-        startDemo();
+        startDemo({
+          user: {
+            id: 'demo_user_joel',
+            businessId: 'demo_biz_northstar',
+            name: 'Joel J',
+            email: 'joel@northstar.example',
+            role: 'admin',
+            provider: 'local',
+          },
+        });
         toast('Welcome back, Joel J!');
         navigate('/');
         setBusy(false);
         return;
       }
+
+      const accounts = loadStaticAccounts();
+      const matched = accounts.find(a => a.email === idLower);
+      if (matched) {
+        const candidateHash = await hashPasswordSha256(password);
+        if (candidateHash === matched.passwordHash) {
+          localStorage.removeItem('billpro_static_admin');
+          startDemo({
+            user: {
+              id: matched.id,
+              businessId: `biz_${matched.id}`,
+              name: matched.name,
+              email: matched.email,
+              role: matched.role,
+              provider: 'local',
+            },
+            businessName: matched.businessName,
+          });
+          toast(`Welcome back, ${matched.name}!`);
+          navigate('/');
+          setBusy(false);
+          return;
+        }
+      }
+
       setError('Invalid Email or Password');
       setBusy(false);
       return;
@@ -619,6 +757,7 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
     try {
       const res = await api<{ user: AppUser; redirectUrl?: string }>(`/api/auth/${mode}`, { method: 'POST', body: jsonBody(payload) });
       localStorage.removeItem(DEMO_KEY);
+      localStorage.removeItem(STATIC_SESSION_KEY);
       toast(mode === 'login' ? `Welcome back, ${res.user.name}!` : `Workspace created for ${res.user.name}!`);
 
       // Role-Based Redirection:
@@ -628,7 +767,13 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       window.location.assign(withBasePath(destination));
     } catch (e) {
       if (mode === 'login') {
-        setError('Invalid Email or Password');
+        if (e instanceof ApiError && e.status && e.status !== 401) {
+          setError(e.message);
+        } else if (e instanceof ApiError && e.message && e.message.toLowerCase().includes('sign-in')) {
+          setError(e.message);
+        } else {
+          setError('Invalid Email or Password');
+        }
       } else {
         setError(e instanceof Error ? e.message : 'Registration could not be completed.');
       }
@@ -767,16 +912,37 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
           </label>
           <label>
             Password
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={e => { setPassword(e.target.value); if (error) setError(''); }}
-              placeholder="Enter your password"
-              required
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              className={error ? 'auth-input-error' : ''}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={password}
+                onChange={e => { setPassword(e.target.value); if (error) setError(''); }}
+                placeholder={mode === 'register' ? 'Minimum 8 characters' : 'Enter your password'}
+                required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                className={error ? 'auth-input-error' : ''}
+                style={{ width: '100%', paddingRight: '42px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  color: 'var(--muted)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  borderRadius: '6px',
+                }}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </label>
           {mode === 'login' && (
             <button type="button" className="text-link align-right" onClick={() => navigate('/forgot-password')}>
