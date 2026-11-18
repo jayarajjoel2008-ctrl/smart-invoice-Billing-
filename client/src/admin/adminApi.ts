@@ -2,11 +2,105 @@
 // Communicates with /api/admin/* endpoints with credentials and security headers
 
 const ADMIN_BASE = '/api/admin';
+const isStaticHost = () => typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+
+const STATIC_ADMIN_USER: AdminUserType = {
+  id: 'admin_preview_1',
+  username: 'admin',
+  email: 'admin@billpro.ai',
+  name: 'Super Admin',
+  role: 'superadmin',
+  status: 'active',
+  twoFactorEnabled: false,
+  lastLoginAt: new Date().toISOString(),
+  lastLoginIp: '127.0.0.1',
+};
+
+function staticAdminMock(endpoint: string, options: RequestInit = {}): any {
+  const path = endpoint.split('?')[0];
+  if (path === '/auth/login') {
+    const body = options.body ? JSON.parse(String(options.body)) : {};
+    const u = String(body.username || '').trim().toLowerCase();
+    const p = String(body.password || '');
+    if (['admin', 'admin@billpro.ai', 'admin@northstar.example'].includes(u) && ['AdminPassword123!', 'password123', 'admin123'].includes(p)) {
+      localStorage.setItem('billpro_static_admin', '1');
+      return { admin: STATIC_ADMIN_USER };
+    }
+    throw new Error('Invalid Username or Password');
+  }
+  if (path === '/auth/logout') {
+    localStorage.removeItem('billpro_static_admin');
+    return { ok: true };
+  }
+  if (path === '/auth/me') {
+    if (localStorage.getItem('billpro_static_admin') === '1') {
+      return { admin: STATIC_ADMIN_USER };
+    }
+    throw new Error('Not authenticated');
+  }
+  if (path === '/dashboard/stats') {
+    return {
+      kpis: {
+        totalBusinesses: 9, activeBusinesses: 8, inactiveBusinesses: 1, suspendedBusinesses: 0,
+        totalUsers: 24, totalInvoices: 148, totalPlatformRevenue: 184950, activeSubscriptions: 7, pendingSupportRequests: 2,
+      },
+      analytics: {
+        monthlyTrends: [
+          { month: 'Jun', businesses: 3, users: 8, revenue: 21000 },
+          { month: 'Jul', businesses: 4, users: 11, revenue: 26500 },
+          { month: 'Aug', businesses: 5, users: 14, revenue: 31200 },
+          { month: 'Sep', businesses: 6, users: 17, revenue: 34800 },
+          { month: 'Oct', businesses: 8, users: 21, revenue: 38450 },
+          { month: 'Nov', businesses: 9, users: 24, revenue: 43000 },
+        ],
+        planDistribution: { free: 2, basic: 2, professional: 4, enterprise: 1 },
+        paymentStats: {
+          success: { count: 18, total: 184950 },
+          failed: { count: 1, total: 2999 },
+          pending: { count: 1, total: 9999 },
+          refunded: { count: 0, total: 0 },
+        },
+        plans: [
+          { _id: 'p1', name: 'Free Plan', slug: 'free', monthlyPrice: 0, yearlyPrice: 0, features: ['20 Invoices/mo', '1 Seat'] },
+          { _id: 'p2', name: 'Basic Plan', slug: 'basic', monthlyPrice: 999, yearlyPrice: 9990, features: ['200 Invoices/mo', '3 Seats', 'GST Reports'] },
+          { _id: 'p3', name: 'Professional Plan', slug: 'professional', monthlyPrice: 2499, yearlyPrice: 24990, features: ['Unlimited Invoices', '10 Seats', 'AI Assistant'] },
+          { _id: 'p4', name: 'Enterprise Plan', slug: 'enterprise', monthlyPrice: 7999, yearlyPrice: 79990, features: ['Custom Integrations', 'Unlimited Seats', 'Priority SLA'] },
+        ],
+      },
+      recent: {
+        businesses: [{ _id: 'b1', name: 'Northstar Studio Pvt Ltd', email: 'joel@northstar.example', status: 'active', subscriptionPlan: 'professional', createdAt: new Date().toISOString() }],
+        users: [{ _id: 'u1', name: 'Joel J', email: 'joel@northstar.example', role: 'admin', status: 'active', createdAt: new Date().toISOString() }],
+        transactions: [{ _id: 't1', transactionId: 'TXN-BP-9041', businessName: 'Northstar Studio Pvt Ltd', planName: 'Professional Plan', amount: 24990, status: 'success', paymentMethod: 'UPI', createdAt: new Date().toISOString() }],
+        tickets: [{ _id: 'tk1', ticketNumber: 'SUP-1042', subject: 'GSTR-1 JSON Export Inquiry', businessName: 'Northstar Studio Pvt Ltd', priority: 'medium', status: 'open', createdAt: new Date().toISOString() }],
+        logs: [{ _id: 'l1', adminName: 'Super Admin', action: 'ADMIN_LOGIN_PREVIEW', category: 'auth', details: 'Opened Super Admin preview session', ipAddress: '127.0.0.1', createdAt: new Date().toISOString() }],
+      },
+    };
+  }
+  if (path === '/businesses') return { businesses: [{ _id: 'b1', name: 'Northstar Studio Pvt Ltd', email: 'joel@northstar.example', gstin: '27AABCN1234F1Z5', status: 'active', subscriptionPlan: 'professional', subscriptionStatus: 'active', createdAt: new Date().toISOString() }], total: 1 };
+  if (path === '/users') return { users: [{ _id: 'u1', name: 'Joel J', email: 'joel@northstar.example', role: 'admin', status: 'active', createdAt: new Date().toISOString() }], total: 1 };
+  if (path === '/subscriptions/plans') return { plans: [
+    { _id: 'p1', name: 'Free Plan', slug: 'free', description: 'Starter GST billing', monthlyPrice: 0, yearlyPrice: 0, features: ['20 Invoices/mo', '1 Seat'], limits: { maxInvoicesPerMonth: 20, maxUsers: 1, aiQueriesPerMonth: 10, customBranding: false, prioritySupport: false } },
+    { _id: 'p2', name: 'Basic Plan', slug: 'basic', description: 'Growing SMEs', monthlyPrice: 999, yearlyPrice: 9990, features: ['200 Invoices/mo', '3 Seats'], limits: { maxInvoicesPerMonth: 200, maxUsers: 3, aiQueriesPerMonth: 100, customBranding: true, prioritySupport: false } },
+    { _id: 'p3', name: 'Professional Plan', slug: 'professional', description: 'Full-featured automation', monthlyPrice: 2499, yearlyPrice: 24990, features: ['Unlimited Invoices', '10 Seats', 'AI Assistant'], limits: { maxInvoicesPerMonth: 10000, maxUsers: 10, aiQueriesPerMonth: 1000, customBranding: true, prioritySupport: true } },
+    { _id: 'p4', name: 'Enterprise Plan', slug: 'enterprise', description: 'High-volume multi-branch', monthlyPrice: 7999, yearlyPrice: 79990, features: ['Unlimited Everything', 'Dedicated SLA'], limits: { maxInvoicesPerMonth: 100000, maxUsers: 100, aiQueriesPerMonth: 10000, customBranding: true, prioritySupport: true } },
+  ] };
+  if (path === '/payments') return { transactions: [{ _id: 't1', transactionId: 'TXN-BP-9041', businessName: 'Northstar Studio Pvt Ltd', customerEmail: 'joel@northstar.example', planName: 'Professional Plan', amount: 24990, status: 'success', paymentMethod: 'UPI', createdAt: new Date().toISOString() }], summary: { totalAmount: 184950, successCount: 18, failedCount: 1, pendingCount: 1, refundedCount: 0 } };
+  if (path === '/invoices/stats') return { totals: { totalCount: 148, totalValue: 2845000, totalGst: 512100, paidCount: 112, pendingCount: 28, overdueCount: 8 }, topBusinesses: [{ businessName: 'Northstar Studio Pvt Ltd', invoiceCount: 48, totalValue: 1145000 }] };
+  if (path === '/support/tickets') return { tickets: [{ _id: 'tk1', ticketNumber: 'SUP-1042', subject: 'GSTR-1 JSON Export Inquiry', message: 'Need guidance on quarterly GSTR-1 reconciliation.', businessName: 'Northstar Studio Pvt Ltd', priority: 'medium', status: 'open', replies: [], createdAt: new Date().toISOString() }] };
+  if (path === '/system/health') return { status: 'healthy', uptimeSeconds: 86400, memory: { rssMb: 92, heapUsedMb: 48, heapTotalMb: 72 }, database: { status: 'connected', latencyMs: 4 }, services: [{ name: 'Web Frontend', status: 'operational' }, { name: 'GST Tax Engine', status: 'operational' }], logs: [] };
+  if (path === '/logs') return { logs: [{ _id: 'l1', adminName: 'Super Admin', adminEmail: 'admin@billpro.ai', action: 'ADMIN_LOGIN_PREVIEW', category: 'auth', details: 'Super Admin preview session active', ipAddress: '127.0.0.1', createdAt: new Date().toISOString() }] };
+  if (path === '/settings') return { settings: { general: { appName: 'BillPro AI', description: 'Smart GST Invoice & Billing SaaS', contactEmail: 'support@billpro.ai', supportPhone: '+91 22 5550 0184' }, security: { passwordMinLength: 8, sessionTimeoutMinutes: 1440, require2FA: false, maxFailedAttempts: 5 }, email: { smtpHost: 'smtp.sendgrid.net', smtpPort: 587, smtpUser: 'apikey', smtpFrom: 'admin@billpro.ai', notifyOnRegister: true, notifyOnPayment: true }, ai: { geminiModel: 'gemini-2.5-flash', enabled: true, maxDailyTokens: 500000, temperature: 0.2 } } };
+  return { ok: true };
+}
 
 async function adminRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  if (isStaticHost()) {
+    return staticAdminMock(endpoint, options) as T;
+  }
+
   const headers = new Headers(options.headers || {});
   headers.set('X-BillPro-Request', '1');
   if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {

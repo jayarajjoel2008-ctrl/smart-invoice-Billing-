@@ -191,7 +191,7 @@ export function AdminApp() {
         </p>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button
-            onClick={() => window.location.assign('/')}
+            onClick={() => window.location.assign(import.meta.env.BASE_URL || '/')}
             className="admin-btn-secondary"
             style={{ padding: '0.75rem 1.4rem' }}
           >
@@ -461,7 +461,7 @@ export function AdminApp() {
 
             {/* Quick Link to Business User Dashboard */}
             <a
-              href="/"
+              href={import.meta.env.BASE_URL || '/'}
               target="_blank"
               rel="noopener noreferrer"
               style={{

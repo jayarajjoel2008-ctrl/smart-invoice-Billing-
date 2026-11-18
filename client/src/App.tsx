@@ -386,7 +386,14 @@ export function FacebookIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-export function SocialAuthModal({
+export const isStaticDemoHost = () => typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+const withBasePath = (path: string) => {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${clean}` || '/';
+};
+
+function SocialAuthModal({
   provider,
   onClose,
   onSuccess,
@@ -395,7 +402,7 @@ export function SocialAuthModal({
   onClose: () => void;
   onSuccess: (user: AppUser) => void;
 }) {
-  const { toast } = useSession();
+  const { toast, startDemo } = useSession();
   const [email, setEmail] = useState(
     provider === 'google' ? 'joel.dev@gmail.com' :
     provider === 'apple' ? 'joel@icloud.com' :
@@ -420,6 +427,19 @@ export function SocialAuthModal({
 
     setBusy(true);
     setError('');
+    if (isStaticDemoHost()) {
+      startDemo();
+      toast(`Signed in with ${providerTitle} (Preview Workspace)`);
+      onSuccess({
+        id: shortId(),
+        businessId: 'demo_biz',
+        name: name.trim(),
+        email: cleanEmail,
+        role: 'admin',
+        provider,
+      });
+      return;
+    }
     try {
       const res = await api<{ user: AppUser }>(`/api/auth/oauth/${provider}`, {
         method: 'POST',
@@ -550,6 +570,43 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
     }
 
     setBusy(true);
+
+    // Static GitHub Pages preview mode (no Node/MongoDB API hosted on *.github.io)
+    if (isStaticDemoHost()) {
+      const idLower = cleanEmail.toLowerCase();
+      if (mode === 'register') {
+        startDemo();
+        toast(`Workspace created for ${name.trim() || 'your business'}!`);
+        navigate('/');
+        setBusy(false);
+        return;
+      }
+      const isAdminCred =
+        ['admin', 'admin@billpro.ai', 'admin@northstar.example'].includes(idLower) &&
+        ['AdminPassword123!', 'password123', 'admin123'].includes(password);
+      const isUserCred =
+        idLower === 'joel@northstar.example' && password === 'password123';
+
+      if (isAdminCred) {
+        localStorage.setItem('billpro_static_admin', '1');
+        toast('Welcome back, Super Admin!');
+        navigate('/admin');
+        setBusy(false);
+        return;
+      }
+      if (isUserCred) {
+        localStorage.removeItem('billpro_static_admin');
+        startDemo();
+        toast('Welcome back, Joel J!');
+        navigate('/');
+        setBusy(false);
+        return;
+      }
+      setError('Invalid Email or Password');
+      setBusy(false);
+      return;
+    }
+
     const payload = mode === 'login'
       ? { email: cleanEmail, password }
       : {
@@ -568,7 +625,7 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       // When logging in with Admin credentials, redirect to Admin Dashboard (/admin).
       // When logging in as a normal User, redirect to User Dashboard (/).
       const destination = res.redirectUrl || (res.user.role === 'superadmin' ? '/admin' : '/');
-      window.location.assign(destination);
+      window.location.assign(withBasePath(destination));
     } catch (e) {
       if (mode === 'login') {
         setError('Invalid Email or Password');
@@ -792,7 +849,11 @@ function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
           onClose={() => setSocialModal(null)}
           onSuccess={() => {
             setSocialModal(null);
-            window.location.assign('/');
+            if (isStaticDemoHost()) {
+              navigate('/');
+            } else {
+              window.location.assign(withBasePath('/'));
+            }
           }}
         />
       )}
